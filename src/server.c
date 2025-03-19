@@ -2,12 +2,11 @@
  * server.c - An ftp server
  */
 
-#include "csapp.h"
 #include "server.h"
 
 #define MAX_NAME_LEN 256
 
-pid_t children[NB_PROC];
+pid_t pool[NB_PROC];
 
 void echo(int connfd)
 {
@@ -18,7 +17,7 @@ void echo(int connfd)
     Rio_readinitb(&rio, connfd);
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
         printf("server received %u bytes\n", (unsigned int)n);
-        Rio_writen(connfd, buf, n);
+        printf("%s\n", buf);
     }
 }
 
@@ -28,11 +27,14 @@ int main(int argc, char **argv)
     int port = 2121; /* default port */
     int listenfd = Open_listenfd(port);
 
+    // Signal(SIGINT, handler_sigint);
+
     /* creation of the process pool */
     for (int i = 0; i < NB_PROC; i++ ) {
         pid  = Fork();
         if (pid == 0) break;
-        children[i] = pid;
+        pool[i] = pid;
+        //printf("%d\n", pool[i]);
     }
 
     int connfd;
