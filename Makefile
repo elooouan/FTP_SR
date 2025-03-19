@@ -5,10 +5,10 @@ LIBS += -lpthread
 
 SRCDIR = src
 INCDIR = include
-INCLUDE = $(INCDIR)/csapp.h
+INCLUDE = $(INCDIR)/csapp.h $(INCDIR)/server.h $(INCDIR)/handlers.h
 CSAPP_OBJ = $(SRCDIR)/csapp.o
 
-server_OBJS = $(SRCDIR)/server.o $(CSAPP_OBJ)
+server_OBJS = $(SRCDIR)/server.o $(CSAPP_OBJ) $(SRCDIR)/handlers.o
 client_OBJS = $(SRCDIR)/client.o $(CSAPP_OBJ)
 
 PROGS = server client
