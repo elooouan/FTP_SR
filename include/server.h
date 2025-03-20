@@ -11,7 +11,7 @@ extern pid_t pool[NB_PROC];
 
 typedef struct request_t {
     int type; /* a preciser dans le compte rendu */
-    char name[FILENAME_MAXSIZE];
+    char filename[FILENAME_MAXSIZE];
     size_t filename_size; /* file size */
 
 } request_t;

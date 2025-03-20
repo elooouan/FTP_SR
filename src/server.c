@@ -8,6 +8,24 @@
 
 pid_t pool[NB_PROC];
 
+request_t* decode_request(char* serialized_request) {
+    request_t* req = malloc(sizeof(request_t));
+
+    if (!req) return NULL;
+
+    /* might need error handling if coonection/pipe crashes */
+    char* token = strtok(serialized_request, "|");
+    req->type = atoi(token);
+    
+    token = strtok(NULL, "|");
+    req->filename_size = atoi(token);
+
+    token = strtok(NULL, " ");
+    strncpy(req->filename, token, FILENAME_MAXSIZE);
+
+    return req;
+}
+
 void echo(int connfd)
 {
     size_t n;
@@ -17,7 +35,8 @@ void echo(int connfd)
     Rio_readinitb(&rio, connfd);
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
         printf("server received %u bytes\n", (unsigned int)n);
-        printf("%s\n", buf);
+        request_t* req = decode_request(buf);
+        printf("%s | %ld | %s\n", req->type == 0 ? "GET" : "BRUH", req->filename_size, req->filename);
     }
 }
 

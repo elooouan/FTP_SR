@@ -30,8 +30,8 @@ request_t* fill_request_struct(char* input) {
         return NULL;
     }
 
-    strncpy(req->name, token, FILENAME_MAXSIZE);
-    req->name[FILENAME_MAXSIZE - 1] = '\0';
+    strncpy(req->filename, token, FILENAME_MAXSIZE);
+    req->filename[FILENAME_MAXSIZE - 1] = '\0';
 
     // req->file_size = sizeof(name);
 
@@ -39,7 +39,7 @@ request_t* fill_request_struct(char* input) {
 }
 
 char* serialize_request(request_t* req) {
-    size_t message_size = sizeof(req->type) + sizeof(req->filename_size) + strlen(req->name) + 2 + 1; /* two '|' and one '/0' */
+    size_t message_size = sizeof(req->type) + sizeof(req->filename_size) + strlen(req->filename) + 2 + 1; /* two '|' and one '/0' */
     char* message = (char*)malloc(message_size);
 
     if (!message) {
@@ -47,7 +47,7 @@ char* serialize_request(request_t* req) {
         exit(EXIT_FAILURE);
     }
 
-    snprintf(message, message_size, "%d|%zu|%s", req->type, req->filename_size, req->name);
+    snprintf(message, message_size, "%d|%zu|%s", req->type, req->filename_size, req->filename);
 
     return message;
 }
