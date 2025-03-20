@@ -3,6 +3,9 @@
 
 #include "csapp.h"
 #include "handlers.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define NB_PROC 3 /* number of processes (children) in process pool */
 #define FILENAME_MAXSIZE 20 /* filename's max size */
@@ -19,5 +22,10 @@ typedef struct request_t {
 typedef struct response_t {    
     int code; /* return code. Success = 0, Error = 1 */
 } response_t;
+
+request_t* decode_request(char* serialized_request);
+void process_request(int connfd);
+void send_file(request_t* req);
+
 
 #endif
