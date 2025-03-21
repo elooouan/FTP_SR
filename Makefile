@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror
+CFLAGS = -g -Wall -Werror
 LDFLAGS =
 LIBS += -lpthread
 
