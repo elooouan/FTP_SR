@@ -4,8 +4,6 @@
 
 #include "server.h"
 
-#define MAX_NAME_LEN 256
-
 pid_t pool[NB_PROC];
 
 request_t* decode_request(char* serialized_request)
@@ -27,75 +25,6 @@ request_t* decode_request(char* serialized_request)
     return req;
 }
 
-void request_routage(request_t* req)
-{
-    switch (req->type) {
-        case 0: /* GET */
-            send_file(req);
-            break;
-    }
-}
-
-void send_file(request_t* req)
-{
-    // Construct the pathname
-    int pathname_size = strlen(req->filename) + strlen("./serverside/") + 1;
-    char* pathname = (char*)malloc(pathname_size);
-    if (pathname == NULL) {
-        perror("malloc");
-        return;
-    }
-    
-    snprintf(pathname, pathname_size, "./serverside/%s", req->filename);
-    
-    // Resolve the real path
-    char real[MAX_NAME_LEN];
-    realpath(pathname, real);
-    printf("Resolved path: %s\n", real);
-    if (real == NULL) {
-        perror("realpath");
-        free(pathname);
-        return;
-    }
-    
-    
-    if (access(real, F_OK | R_OK) != -1) {
-        // File exists and is readable
-        int fd = open(real, O_RDONLY);
-        if (fd >= 0) {
-            printf("wemadeit\n");
-            
-            struct stat metadata;
-            if (stat(real, &metadata) < 0) {
-                perror("stat");
-                close(fd);
-                free(pathname);
-                return;
-            }
-            
-            rio_t rio;
-            Rio_readinitb(&rio, fd);
-            // Continue with file operations...
-            
-            // Don't forget to close the file when done
-            // close(fd);
-        } else {
-            perror("open");
-        }
-    } else {
-        // File doesn't exist or isn't readable
-        if (errno == ENOENT) {
-            printf("File does not exist: %s\n", real);
-        } else if (errno == EACCES) {
-            printf("Permission denied: %s\n", real);
-        } else {
-            perror("access");
-        }
-    }
-    
-    free(pathname);  // Don't forget to free allocated memory
-}
-
 void process_request(int connfd)
 {
     size_t n;
@@ -107,9 +36,100 @@ void process_request(int connfd)
         printf("server received %u bytes\n", (unsigned int)n);
         request_t* req = decode_request(buf);
         printf("%s | %ld | %s\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename);
-        request_routage(req);
+        request_routage(connfd, req);
     }
 }
+
+void request_routage(int connfd, request_t* req)
+{
+    switch (req->type) {
+        case 0: /* GET */
+            file_manager(connfd, req);
+            break;
+    }
+}
+
+void send_error(int connfd, int error_code, char* error_message)
+{
+    uint32_t error_indicator = htonl(0xFFFFFFFF); /* to indicate an error -> warning */
+    Rio_writen(connfd, &error_indicator, sizeof(error_indicator));
+    
+    error_code = htonl(error_code);
+    Rio_writen(connfd, &error_code, sizeof(error_code));
+    
+    uint32_t msg_len = strlen(error_message);
+    uint32_t msg_len_net = htonl(msg_len);
+    Rio_writen(connfd, &msg_len_net, sizeof(msg_len_net));
+    
+    Rio_writen(connfd, error_message, msg_len);
+}
+
+void manage_errors(int connfd, int error_code)
+{
+    switch (error_code) {
+        case ENOENT:
+            send_error(connfd, 404, "File does not exist");
+            break;
+        case EACCES:
+            send_error(connfd, 403, "Permission denied");
+            break;
+        default:
+            send_error(connfd, 400, "Access error");
+    }
+}
+
+// void manage_pathname
+
+void file_manager(int connfd, request_t* req)
+{
+    int pathname_size = strlen(req->filename) + strlen("serverside/") + 1;
+    char* pathname = (char*)malloc(pathname_size);
+    if (pathname == NULL) {
+        perror("malloc");
+        return;
+    }
+    
+    snprintf(pathname, pathname_size, "serverside/%s", req->filename);
+    pathname[strlen(pathname) - 1] = '\0'; /* due to client-side *enter* */
+
+    if (access(pathname, F_OK | R_OK) == 0) {
+        // File exists or Readable 
+        int fd = open(pathname, O_RDONLY);
+        if (fd >= 0) {
+            
+            struct stat metadata;
+            stat(pathname, &metadata);
+            
+            rio_t rio;
+            Rio_readinitb(&rio, fd);
+            
+            /* According to protocol -> send file size to client first */
+            uint32_t size_net = htonl((uint32_t)metadata.st_size); /* For Endianness */
+            Rio_writen(connfd, &size_net, sizeof(size_net));
+            
+            int n;
+            char file_buffer[BLOCK_SIZE];
+            while((n = read(fd, file_buffer, BLOCK_SIZE)) > 0) {
+                uint32_t n_net = htonl(n);
+                Rio_writen(connfd, &n_net, sizeof(n_net));
+                Rio_writen(connfd, file_buffer, n);
+            }
+
+            /* close after sending file */ 
+            close(fd);
+
+        } else {
+            perror("open");
+        }
+    } else {
+        // File doesn't exist or isn't readable
+        manage_errors(connfd, errno);
+    }
+    
+    free(pathname);  // Don't forget to free allocated memory
+}
+
+
 
 int main(int argc, char **argv)
 {
@@ -124,7 +144,6 @@ int main(int argc, char **argv)
         pid  = Fork();
         if (pid == 0) break;
         pool[i] = pid;
-        //printf("%d\n", pool[i]);
     }
 
     int connfd;
