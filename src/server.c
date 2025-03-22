@@ -5,6 +5,7 @@
 #include "server.h"
 
 pid_t pool[NB_PROC];
+int connection_closed = 0;
 
 request_t* decode_request(char* serialized_request)
 {
@@ -19,8 +20,11 @@ request_t* decode_request(char* serialized_request)
     token = strtok(NULL, "|");
     req->filename_size = atoi(token);
 
-    token = strtok(NULL, " ");
+    token = strtok(NULL, "|");
     strncpy(req->filename, token, FILENAME_MAXSIZE);
+
+    token = strtok(NULL, " \n");
+    req->total_bytes_sent = atoi(token);
 
     return req;
 }
@@ -32,15 +36,15 @@ void process_request(int connfd)
     rio_t rio;
 
     Rio_readinitb(&rio, connfd);
-    while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
+    while (!connection_closed && (n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
         printf("server received %u bytes\n", (unsigned int)n);
         request_t* req = decode_request(buf);
-        printf("%s | %ld | %s\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename);
-        request_routage(connfd, req);
+        printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename, req->total_bytes_sent);
+        manage_requests(connfd, req);
     }
 }
 
-void request_routage(int connfd, request_t* req)
+void manage_requests(int connfd, request_t* req)
 {
     switch (req->type) {
         case 0: /* GET */
@@ -70,9 +74,6 @@ void manage_errors(int connfd, int error_code)
         case ENOENT:
             send_error(connfd, 404, "File does not exist");
             break;
-        case EACCES:
-            send_error(connfd, 403, "Permission denied");
-            break;
         default:
             send_error(connfd, 400, "Access error");
     }
@@ -88,15 +89,17 @@ void file_manager(int connfd, request_t* req)
         perror("malloc");
         return;
     }
-    
+
     snprintf(pathname, pathname_size, "serverside/%s", req->filename);
-    pathname[strlen(pathname) - 1] = '\0'; /* due to client-side *enter* */
 
     if (access(pathname, F_OK | R_OK) == 0) {
-        // File exists or Readable 
         int fd = open(pathname, O_RDONLY);
         if (fd >= 0) {
-            
+            if (lseek(fd, req->total_bytes_sent, SEEK_SET) == -1) {
+                perror("lseek failed");
+                return;
+            }
+
             struct stat metadata;
             stat(pathname, &metadata);
             
@@ -111,8 +114,17 @@ void file_manager(int connfd, request_t* req)
             char file_buffer[BLOCK_SIZE];
             while((n = read(fd, file_buffer, BLOCK_SIZE)) > 0) {
                 uint32_t n_net = htonl(n);
-                Rio_writen(connfd, &n_net, sizeof(n_net));
-                Rio_writen(connfd, file_buffer, n);
+
+                if (rio_writen(connfd, &n_net, sizeof(n_net)) != (ssize_t)sizeof(n_net)) { 
+                    Close(connfd);
+                    break;
+                }
+
+                if (rio_writen(connfd, file_buffer, n) != (ssize_t)n) {
+                    Close(connfd);
+                    connection_closed = 1;
+                    break;
+                }
             }
 
             /* close after sending file */ 
@@ -125,7 +137,6 @@ void file_manager(int connfd, request_t* req)
         // File doesn't exist or isn't readable
         manage_errors(connfd, errno);
     }
-    
     free(pathname);  // Don't forget to free allocated memory
 }
 
@@ -137,7 +148,7 @@ int main(int argc, char **argv)
     int port = 2121; /* default port */
     int listenfd = Open_listenfd(port);
 
-    // Signal(SIGINT, handler_sigint);
+    Signal(SIGPIPE, SIG_IGN);
 
     /* creation of the process pool */
     for (int i = 0; i < NB_PROC; i++ ) {
@@ -153,12 +164,16 @@ int main(int argc, char **argv)
     char client_hostname[MAX_NAME_LEN];
 
 
-    if (pid == 0) {        
+    if (pid == 0) {  
         clientlen = (socklen_t)sizeof(clientaddr);
         
-
+        
         while (1) {
-            while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);
+            /* waiting for connection */
+            while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);  
+            
+            /* gets connection */
+            connection_closed = 0;      
 
             /* determine the name of the client */
             Getnameinfo((SA *) &clientaddr, clientlen,
@@ -168,12 +183,13 @@ int main(int argc, char **argv)
             Inet_ntop(AF_INET, &clientaddr.sin_addr, client_ip_string,
                     INET_ADDRSTRLEN);
             
-            printf("server connected to %s (%s)\n", client_hostname,
-                client_ip_string);
+            printf("server connected to %s (%s) | client info: %u\n", client_hostname,
+                client_ip_string, clientaddr.sin_addr.s_addr);
 
             /* traitement */
             process_request(connfd);
-            Close(connfd);
+            if (!connection_closed) Close(connfd);
+            printf("Connection to (%s) closed\n", client_ip_string);
         }
     } else {
         pause();

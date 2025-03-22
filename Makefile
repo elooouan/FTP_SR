@@ -1,28 +1,18 @@
 CC = gcc
-CFLAGS = -g -Wall -Werror
-LDFLAGS =
-LIBS += -lpthread
-
+INCLUDEDIR = include
 SRCDIR = src
-INCDIR = include
-INCLUDE = $(INCDIR)/csapp.h $(INCDIR)/server.h $(INCDIR)/handlers.h
-CSAPP_OBJ = $(SRCDIR)/csapp.o
+CFLAGS = -g -Wall -I$(INCLUDEDIR)
 
-server_OBJS = $(SRCDIR)/server.o $(CSAPP_OBJ) $(SRCDIR)/handlers.o
-client_OBJS = $(SRCDIR)/client.o $(CSAPP_OBJ)
+all: server client
 
-PROGS = server client
+server: $(SRCDIR)/server.o $(SRCDIR)/csapp.o
+	$(CC) $(CFLAGS) -o $@ $^
 
-all: $(PROGS)
+client: $(SRCDIR)/client.o $(SRCDIR)/csapp.o
+	$(CC) $(CFLAGS) -o $@ $^
 
-$(SRCDIR)/%.o: $(SRCDIR)/%.c $(INCLUDE)
-	$(CC) $(CFLAGS) -I$(INCDIR) -c -o $@ $<
-
-server: $(server_OBJS)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
-
-client: $(client_OBJS)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
+src/%.o: $(SRCDIR)/%.c $(INCLUDEDIR)/%.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(PROGS) $(SRCDIR)/*.o
+	rm -f src/*.o clientside/* server client

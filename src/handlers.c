@@ -9,3 +9,7 @@ void handler_sigint(int sig)
 
     write(STDOUT_FILENO, "\n", 1);
 }
+
+// void sigpipe_handler(int sig) {
+//     close
+// }
