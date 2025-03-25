@@ -5,7 +5,7 @@ CFLAGS = -g -Wall -I$(INCLUDEDIR)
 
 all: server client
 
-server: $(SRCDIR)/server.o $(SRCDIR)/csapp.o
+server: $(SRCDIR)/server.o $(SRCDIR)/csapp.o $(SRCDIR)/handlers.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 client: $(SRCDIR)/client.o $(SRCDIR)/csapp.o
