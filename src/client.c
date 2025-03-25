@@ -141,8 +141,8 @@ void log_file_transfer(char* filename, uint32_t file_size, uint32_t total_bytes_
     char log_path[256];
     char tmp_log_path[256];
 
-    snprintf(log_path, sizeof(log_path), "%s/%s.log", log_dir, filename);
-    snprintf(tmp_log_path, sizeof(tmp_log_path), "%s/%s.log.tmp", log_dir, filename);
+    snprintf(log_path, sizeof(log_path), "%s/.log", log_dir);
+    snprintf(tmp_log_path, sizeof(tmp_log_path), "%s/.log.tmp", log_dir);
 
     FILE* log_file = fopen(tmp_log_path, "w");
     if (!log_file) {
@@ -196,7 +196,7 @@ void create_file(int clientfd, int fd, uint32_t file_bytes_sent, uint32_t file_s
 
                 // Delete log file
                 char log_path[256];
-                snprintf(log_path, sizeof(log_path), "clientside/.log/%s.log", request->filename);
+                snprintf(log_path, sizeof(log_path), "clientside/.log/.log");
                 remove(log_path);
 
                 rmdir("clientside/.log");
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
         request_t* request = malloc(sizeof(request_t));
 
         char log_path[256];
-        snprintf(log_path, sizeof(log_path), "clientside/.log/Factorio.zip.log");
+        snprintf(log_path, sizeof(log_path), "clientside/.log/.log");
 
         if (access(log_path, F_OK) == 0) {
             uint32_t total_bytes_sent, file_size;
