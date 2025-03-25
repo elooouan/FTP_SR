@@ -159,17 +159,18 @@ int main(int argc, char **argv)
         pool[i] = pid;
     }
 
-    int connfd;
-    socklen_t clientlen;
-    struct sockaddr_in clientaddr;
-    char client_ip_string[INET_ADDRSTRLEN];
-    char client_hostname[MAX_NAME_LEN];
+    
 
 
     if (pid == 0) {  
+        int connfd;
+        socklen_t clientlen;
+        struct sockaddr_in clientaddr;
+        char client_ip_string[INET_ADDRSTRLEN];
+        char client_hostname[MAX_NAME_LEN];
+    
         clientlen = (socklen_t)sizeof(clientaddr);
-        
-        
+            
         while (1) {
             /* waiting for connection */
             while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);  
