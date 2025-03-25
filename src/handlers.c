@@ -1,15 +1,11 @@
 #include "handlers.h"
-#include "server.h"
 
 void handler_sigint(int sig)
 {    
     for (int i = 0; i < NB_PROC; i++) {
-        Kill(pool[i], SIGINT);
+        kill(pool[i], SIGINT);
     }
 
-    write(STDOUT_FILENO, "\n", 1);
+    while(waitpid(-1, NULL, 0) > 0);
+    exit(0);
 }
-
-// void sigpipe_handler(int sig) {
-//     close
-// }

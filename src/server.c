@@ -144,8 +144,10 @@ void file_manager(int connfd, request_t* req)
 
 int main(int argc, char **argv)
 {
+    Signal(SIGINT, handler_sigint);
+    
     pid_t pid;
-    int port = 2121; /* default port */
+    int port = 2122; /* slave port (you can choose any by default != 2121) */
     int listenfd = Open_listenfd(port);
 
     Signal(SIGPIPE, SIG_IGN);
@@ -157,17 +159,19 @@ int main(int argc, char **argv)
         pool[i] = pid;
     }
 
-    int connfd;
-    socklen_t clientlen;
-    struct sockaddr_in clientaddr;
-    char client_ip_string[INET_ADDRSTRLEN];
-    char client_hostname[MAX_NAME_LEN];
 
 
     if (pid == 0) {  
+        Signal(SIGINT, SIG_DFL);
+        
+        int connfd;
+        socklen_t clientlen;
+        struct sockaddr_in clientaddr;
+        char client_ip_string[INET_ADDRSTRLEN];
+        char client_hostname[MAX_NAME_LEN];
+        
         clientlen = (socklen_t)sizeof(clientaddr);
-        
-        
+
         while (1) {
             /* waiting for connection */
             while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);  

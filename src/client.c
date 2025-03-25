@@ -141,8 +141,11 @@ void log_file_transfer(char* filename, uint32_t file_size, uint32_t total_bytes_
     char log_path[256];
     char tmp_log_path[256];
 
-    snprintf(log_path, sizeof(log_path), "%s/.log", log_dir);
-    snprintf(tmp_log_path, sizeof(tmp_log_path), "%s/.log.tmp", log_dir);
+    int log_path_size = sizeof(log_dir) + 5 + 1;
+    int tmp_log_path_size = sizeof(tmp_log_path) + 9 + 1; 
+
+    snprintf(log_path, log_path_size, "%s/.log", log_dir);
+    snprintf(tmp_log_path, tmp_log_path_size, "%s/.log.tmp", log_dir);
 
     FILE* log_file = fopen(tmp_log_path, "w");
     if (!log_file) {
@@ -229,12 +232,16 @@ void get_request(int clientfd, request_t* request)
                 return;
             }
 
-            clock_t begin = clock();
-            create_file(clientfd, fd, file_bytes_sent, file_size, request);
-            clock_t end = clock();
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
 
-            int delay = (end - begin) / CLOCKS_PER_SEC; 
+            create_file(clientfd, fd, file_bytes_sent, file_size, request);
+
+            gettimeofday(&end, NULL);
+            int delay = (int)((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1e6);
             printf("%.2f %s received in %d seconds\n", display_size, unit, delay);
+
+
             
             close(fd);
         }
@@ -252,6 +259,7 @@ void manage_commands(int clientfd, request_t* request)
     }
 }
 
+/* used chatgpt for the filename extraction -> a sepcifier dans le compte rendu */
 int parse_resume_log(const char* log_path, request_t* request, uint32_t* total_bytes_sent, uint32_t* file_size) {
     FILE* f = fopen(log_path, "r");
     if (!f) {
@@ -293,6 +301,36 @@ void resume_file_transfer(int clientfd, request_t* request, uint32_t resume_offs
     get_request(clientfd, request);
 }
 
+void message_from_master(int clientfd, char** message) 
+{
+    rio_t rio;
+    int message_size;
+
+    Rio_readinitb(&rio, clientfd);
+    Rio_readn(clientfd, &message_size, sizeof(message_size));
+
+    message_size = ntohl(message_size);
+
+    *message = malloc(message_size);
+    if (!*message) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+    }
+
+    Rio_readlineb(&rio, *message, message_size);      
+}
+
+
+void extract_slave_info(char* message, char* slave_ip, int* slave_port)
+{
+    char* token = strtok(message, "|");
+    if (!token) return;
+    strcpy(slave_ip, token);
+
+    token = strtok(NULL, " ");
+    if (!token) return;
+    *slave_port = atoi(token);
+}
 
 int main(int argc, char **argv)
 {
@@ -301,8 +339,6 @@ int main(int argc, char **argv)
     char* host;
     char input[MAXLINE];
     rio_t rio;
-    
-    // Signal(SIGPIPE, SIG_IGN);
 
     host = argv[1];
     clientfd = Open_clientfd(host, port);
@@ -315,7 +351,18 @@ int main(int argc, char **argv)
     
     Rio_readinitb(&rio, clientfd);
 
+    /* reading from master */
+    char* message = NULL;
+    message_from_master(clientfd, &message);
+
+    char slave_ip[21];
+    extract_slave_info(message, slave_ip, &port);
+    Close(clientfd);
+    
+    clientfd = Open_clientfd(slave_ip, port);
+
     while (1) {
+
         request_t* request = malloc(sizeof(request_t));
 
         char log_path[256];
