@@ -144,6 +144,8 @@ void file_manager(int connfd, request_t* req)
 
 int main(int argc, char **argv)
 {
+    Signal(SIGINT, handler_sigint);
+    
     pid_t pid;
     int port = 2121; /* default port */
     int listenfd = Open_listenfd(port);
