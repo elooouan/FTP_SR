@@ -15,4 +15,4 @@ src/%.o: $(SRCDIR)/%.c $(INCLUDEDIR)/%.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -rf src/*.o clientside/* server client
+	rm -rf src/*.o clientside/* clientside/.[^.]*  server client
