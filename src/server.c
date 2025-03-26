@@ -159,7 +159,6 @@ int main(int argc, char **argv)
         pool[i] = pid;
     }
 
-<<<<<<< HEAD
     
 
 
@@ -172,19 +171,6 @@ int main(int argc, char **argv)
     
         clientlen = (socklen_t)sizeof(clientaddr);
             
-=======
-    int connfd;
-    socklen_t clientlen;
-    struct sockaddr_in clientaddr;
-    char client_ip_string[INET_ADDRSTRLEN];
-    char client_hostname[MAX_NAME_LEN];
-
-
-    if (pid == 0) {  
-        clientlen = (socklen_t)sizeof(clientaddr);
-        
-        
->>>>>>> 5806540e1e0161e384d5309503c8ef0231559ec5
         while (1) {
             /* waiting for connection */
             while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);  
@@ -205,10 +191,6 @@ int main(int argc, char **argv)
 
             /* traitement */
             process_request(connfd);
-<<<<<<< HEAD
-            printf("in\n");
-=======
->>>>>>> 5806540e1e0161e384d5309503c8ef0231559ec5
             if (!connection_closed) Close(connfd);
             printf("Connection to (%s) closed\n", client_ip_string);
         }
