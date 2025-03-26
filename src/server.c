@@ -31,12 +31,12 @@ request_t* decode_request(char* serialized_request)
 
 void process_request(int connfd)
 {
-    size_t n;
+    ssize_t n;
     char buf[MAXLINE];
     rio_t rio;
 
     Rio_readinitb(&rio, connfd);
-    while (!connection_closed && (n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
+    while (!connection_closed && (n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
         printf("server received %u bytes\n", (unsigned int)n);
         request_t* req = decode_request(buf);
         printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename, req->total_bytes_sent);
@@ -191,6 +191,7 @@ int main(int argc, char **argv)
 
             /* traitement */
             process_request(connfd);
+            printf("in\n");
             if (!connection_closed) Close(connfd);
             printf("Connection to (%s) closed\n", client_ip_string);
         }

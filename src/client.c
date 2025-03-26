@@ -55,8 +55,6 @@ char* serialize_request(request_t* req)
 
 void send_request(int clientfd, char* request)
 {
-    rio_t rio;
-    Rio_readinitb(&rio, clientfd);
     Rio_writen(clientfd, request, strlen(request));
 }
 
