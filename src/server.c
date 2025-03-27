@@ -11,20 +11,47 @@ request_t* decode_request(char* serialized_request)
 {
     request_t* req = malloc(sizeof(request_t));
 
-    if (!req) return NULL;
+    if (!req) {
+        fprintf(stderr, "Memory allocation failed for request_t\n");
+        return NULL;
+    }
 
-    /* might need error handling if coonection/pipe crashes */
+    /* Tokenize using the correct delimiter: | */
     char* token = strtok(serialized_request, "|");
+
+    /* Get the request type */
     req->type = atoi(token);
-    
+    if (req->type < 0) {
+        fprintf(stderr, "Invalid request type\n");
+        free(req);
+        return NULL;
+    }
+
+    /* Get the filename size */
     token = strtok(NULL, "|");
     req->filename_size = atoi(token);
+    if (req->filename_size < 0) {
+        fprintf(stderr, "Invalid filename size\n");
+        free(req);
+        return NULL;
+    }
 
+    /* Get the filename */
     token = strtok(NULL, "|");
-    strncpy(req->filename, token, FILENAME_MAXSIZE);
+    if (token) {
+        strncpy(req->filename, token, FILENAME_MAXSIZE);
+    } else {
+        strncpy(req->filename, "empty", 6);
+    }
 
-    token = strtok(NULL, " \n");
-    req->total_bytes_sent = atoi(token);
+    /* Get the total bytes sent */
+    token = strtok(NULL, "|");
+    if (token) {
+        req->total_bytes_sent = atoi(token);
+    } else {
+        req->total_bytes_sent = 0;
+        printf("total_bytes_sent is missing or invalid, setting to 0\n");
+    }
 
     return req;
 }
@@ -39,16 +66,42 @@ void process_request(int connfd)
     while (!connection_closed && (n = Rio_readlineb(&rio, buf, MAXLINE)) > 0) {
         printf("server received %u bytes\n", (unsigned int)n);
         request_t* req = decode_request(buf);
-        printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename, req->total_bytes_sent);
+        printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : (req->type == 1 ? "LS" : "NOTGET"), req->filename_size, req->filename, req->total_bytes_sent);
         manage_requests(connfd, req);
     }
 }
 
+void display_files(int connfd, request_t* req)
+{
+    FILE *fp = popen("ls serverside", "r");
+    if (!fp) {
+        perror("popen failed");
+        return;
+    }
+
+    char buffer[4096]; 
+    int bytes_read = fread(buffer, 1, sizeof(buffer) - 1, fp);
+    buffer[bytes_read] = '\0';
+    pclose(fp);
+
+    int message_size = htonl(bytes_read);
+
+    // Send size
+    Rio_writen(connfd, &message_size, sizeof(message_size));
+
+    // Send ls output
+    Rio_writen(connfd, buffer, bytes_read);
+}
+
+
 void manage_requests(int connfd, request_t* req)
 {
     switch (req->type) {
-        case 0: /* GET */
+        case 0: /* get */
             file_manager(connfd, req);
+            break;
+        case 1: /* ls */
+            display_files(connfd, req);
             break;
     }
 }
@@ -78,8 +131,6 @@ void manage_errors(int connfd, int error_code)
             send_error(connfd, 400, "Access error");
     }
 }
-
-// void manage_pathname
 
 void file_manager(int connfd, request_t* req)
 {
@@ -178,9 +229,6 @@ char* get_server_ip(int serverfd)
     return server_ip;
 }
 
-
-// send deconnection status !!
-
 int main(int argc, char **argv)
 {
     Signal(SIGINT, handler_sigint);
@@ -229,7 +277,7 @@ int main(int argc, char **argv)
             /* determine the textual representation of the client's IP address */
             Inet_ntop(AF_INET, &clientaddr.sin_addr, client_ip_string, INET_ADDRSTRLEN);
             
-            printf("server connected to %s (%s)\n", client_hostname, client_ip_string);
+            fprintf(stderr,"server connected to %s (%s)\n", client_hostname, client_ip_string);
 
 
             /* manage request */

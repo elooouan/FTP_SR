@@ -103,13 +103,13 @@ int main(int argc, char** argv)
 	 /* list of slave serve's IP addresses */
 	char* IP[NB_SLAVES] = {
 		"152.77.82.179",
-		// "152.77.82.180" 
+		"152.77.82.180" 
 	};
 
 	/* list of slave server's pool sizes */
 	int pool_sizes[NB_SLAVES] = { /* A MENTIONNER dans le compte rendu -> dynamic server info with write -> slave server sends his info to the master upon his startup */
 		2,
-		// 3
+		3
 	};
 
 	/* mmap for child processes to share the same memory field with the father */
