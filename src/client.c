@@ -336,7 +336,7 @@ int main(int argc, char **argv)
 {
     int clientfd;
     int port = 2121; /* by default */
-    char* host;
+    char* host; /* ip addr */
     char input[MAXLINE];
     rio_t rio;
 
@@ -357,6 +357,7 @@ int main(int argc, char **argv)
 
     char slave_ip[21];
     extract_slave_info(message, slave_ip, &port);
+    printf("%s\n", message);
     Close(clientfd);
     
     clientfd = Open_clientfd(slave_ip, port);

@@ -140,17 +140,59 @@ void file_manager(int connfd, request_t* req)
     free(pathname);  // Don't forget to free allocated memory
 }
 
+/* sends disconnection status to master */
+void send_disconnection_status(int serverfd, char* server_ip_string)
+{
+    int ip_size = strlen(server_ip_string);
+    int status_size = strlen("DISCONNECTED|") + ip_size + 1;
+    char* status = malloc(status_size);
 
+    snprintf(status, status_size, "DISCONNECTED|%s", server_ip_string);
+    printf("notifying master: %s\n", status);
+
+    int status_size_net = htonl(status_size);
+    
+    Rio_writen(serverfd, &status_size_net, sizeof(int));
+    Rio_writen(serverfd, status, status_size);
+
+    Close(serverfd);
+    free(status);
+}
+
+char* get_server_ip(int serverfd)
+{
+    int server_ip_size;
+
+    Rio_readn(serverfd, &server_ip_size, sizeof(server_ip_size));
+
+    server_ip_size = ntohl(server_ip_size);
+
+    char* server_ip = malloc(server_ip_size);
+    if (!server_ip) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+    }
+
+    Rio_readn(serverfd, server_ip, server_ip_size);  
+
+    return server_ip;
+}
+
+
+// send deconnection status !!
 
 int main(int argc, char **argv)
 {
     Signal(SIGINT, handler_sigint);
+    Signal(SIGPIPE, SIG_IGN);
     
     pid_t pid;
     int port = 2122; /* slave port (you can choose any by default != 2121) */
     int listenfd = Open_listenfd(port);
 
-    Signal(SIGPIPE, SIG_IGN);
+    /* master port */
+    char master_IP[INET_ADDRSTRLEN] = "152.77.82.179"; /* Modify as needed*/
+    int master_port = 2120;
 
     /* creation of the process pool */
     for (int i = 0; i < NB_PROC; i++ ) {
@@ -158,8 +200,6 @@ int main(int argc, char **argv)
         if (pid == 0) break;
         pool[i] = pid;
     }
-
-
 
     if (pid == 0) {  
         Signal(SIGINT, SIG_DFL);
@@ -173,27 +213,35 @@ int main(int argc, char **argv)
         clientlen = (socklen_t)sizeof(clientaddr);
 
         while (1) {
-            /* waiting for connection */
-            while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);  
+            /* waiting for client connection */
+            while ((connfd = accept(listenfd, (SA *)&clientaddr, &clientlen)) < 0);
             
-            /* gets connection */
-            connection_closed = 0;      
+            int serverfd = Open_clientfd(master_IP, master_port);  
+            char server_IP[INET_ADDRSTRLEN];
+            strcpy(server_IP, get_server_ip(serverfd));
+
+            /* GETS CONNECTION */
+            connection_closed = 0;
 
             /* determine the name of the client */
-            Getnameinfo((SA *) &clientaddr, clientlen,
-                        client_hostname, MAX_NAME_LEN, 0, 0, 0);
+            Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
             
             /* determine the textual representation of the client's IP address */
-            Inet_ntop(AF_INET, &clientaddr.sin_addr, client_ip_string,
-                    INET_ADDRSTRLEN);
+            Inet_ntop(AF_INET, &clientaddr.sin_addr, client_ip_string, INET_ADDRSTRLEN);
             
-            printf("server connected to %s (%s) | client info: %u\n", client_hostname,
-                client_ip_string, clientaddr.sin_addr.s_addr);
+            printf("server connected to %s (%s)\n", client_hostname, client_ip_string);
 
-            /* traitement */
+
+            /* manage request */
             process_request(connfd);
+
+
+            /* CLOSES CONNECTION */
             if (!connection_closed) Close(connfd);
             printf("Connection to (%s) closed\n", client_ip_string);
+            
+            /* tell master the client disconnected */
+            send_disconnection_status(serverfd, server_IP);
         }
     } else {
         pause();

@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define NB_PROC 1 /* number of processes (children) in process pool */
+#define NB_PROC 2 /* number of processes (children) in process pool */
 #define FILENAME_MAXSIZE 50 /* filename's max size */
 #define MAX_NAME_LEN 256
 #define BLOCK_SIZE 64*1024 /* 64Kb - used for sending files */
@@ -31,6 +31,7 @@ void manage_requests(int connfd, request_t* req);
 void send_error(int connfd, int error_code, char* error_message);
 void manage_errors(int connfd, int error_code);
 void file_manager(int connfd, request_t* req);
-
+void send_disconnection_status(int serverfd, char* server_ip_string);
+char* get_server_ip(int serverfd);
 
 #endif
