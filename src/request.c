@@ -13,6 +13,8 @@ request_t* fill_request_struct(char* input, request_t* req)
 {
     if (!req) return NULL;
 
+    /* GET request looks like -> get abcdefg.txt */
+    /* strtok splits a string into tokens based on the specified delimiter */
     char* token = strtok(input, " ");
     if (!token) {
         free(req);
@@ -28,6 +30,7 @@ request_t* fill_request_struct(char* input, request_t* req)
     req->type = type;
 
     /* ls command */
+    /* Ignores any input that follows the "ls" command */
     if (type == 1) {
         strncpy(req->filename, "empty", FILENAME_MAXSIZE);
         req->filename_size = 0;

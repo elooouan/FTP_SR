@@ -4,11 +4,11 @@ void ls_response(int clientfd)
 {
 	int message_size;
 
-	/* read message size */
+	/* Read message size */
 	Rio_readn(clientfd, &message_size, sizeof(message_size));
 	message_size = ntohl(message_size);
 
-	/* read list of files (ls) */
+	/* Read list of files (ls) from the slave server */
 	char* display = malloc(message_size);
 	if (!display) {
 		perror("display malloc");
