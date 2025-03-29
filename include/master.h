@@ -47,14 +47,16 @@ void master_to_client_response(int connfd, int slave_id, char* slave_ip, int sla
 void master_to_slave(int slave_socket, char* slave_ip);
 
 /**
- * Finds an available slave server.
+ * Finds an available slave server using round-robin scheduling.
  * 
- * This function searches for a slave server with available capacity to handle more clients.
+ * This function searches for a slave server with available capacity to handle more clients, starting the search from the last used slave. 
+ * The function uses a round-robin approach to evenly distribute clients across the available slave servers.
  * 
  * @param slaves The array of slave servers.
- * @return The ID of an available slave server, or -1 if none is available.
+ * @param next_slave A pointer to an integer that tracks the next slave to check in round-robin fashion. It is updated to point to the next slave after each search.
+ * @return The ID of an available slave server, or -1 if no slave has available capacity.
  */
-int available_slave(slaves* slaves);
+int available_slave(slaves* slaves, int* next_slave);
 
 /**
  * Retrieves the index of a slave server based on its IP address.

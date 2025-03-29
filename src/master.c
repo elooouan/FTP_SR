@@ -32,12 +32,17 @@ void master_to_slave(int slave_socket, char* slave_ip)
 	Rio_writen(slave_socket, message, message_size);
 }
 
-int available_slave(slaves* slaves)
+int available_slave(slaves* slaves, int* next_slave)
 {
-	for (int i = 0; i < NB_SLAVES; i++) {
-		if (slaves[i].nb_clients < slaves[i].pool_size) return slaves[i].id;
-	}
-	return -1;
+	// Start searching from the next slave after the last used one
+    for (int i = 0; i < NB_SLAVES; i++) {
+        int index = (*next_slave + i) % NB_SLAVES;
+        if (slaves[index].nb_clients < slaves[index].pool_size) {
+            *next_slave = index + 1;  // Update the slave's turn
+            return slaves[index].id;
+        }
+    }
+    return -1;  // No available slave
 }
 
 int get_slave_index(char** IP, char* slave_ip)
@@ -104,7 +109,7 @@ int main(int argc, char** argv)
 	/* List of slave serve's IP addresses */
 	char* IP[NB_SLAVES] = {
 		"152.77.81.20",
-		"152.77.82.180" 
+		"152.77.81.50" 
 	};
 
 	/* List of slave server's pool sizes */
@@ -119,6 +124,14 @@ int main(int argc, char** argv)
 	    perror("mmap");
 	    exit(1);
 	}
+
+	int* next_slave = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (next_slave == MAP_FAILED) {
+        perror("mmap failed");
+        exit(1);
+    }
+
+    *next_slave = 0;  // Initialize the shared variable used to track who's the next slave to get a client
 
 	/* Initialize the slave server structure */
 	for (int i = 0; i < NB_SLAVES; i++) {
@@ -152,7 +165,7 @@ int main(int argc, char** argv)
 
 	        int slave_id;
 			/* Find an available slave server to handle the client */
-	        while ((slave_id = available_slave(slaves)) < 0);
+	        while ((slave_id = available_slave(slaves, last_used_slave)) < 0);
 
 			/* Assign the selected slave's IP address and port */
         	char* slave_ip = malloc(sizeof(slaves[slave_id - 1].ip_addr)); 
@@ -162,7 +175,7 @@ int main(int argc, char** argv)
 			/* Send the selected slave's information (IP and port) to the client */
         	master_to_client_response(connfd, slave_id, slave_ip, slave_port);
 
-        	/* check slave connection status */
+        	/* Check slave connection status */
         	int slave_socket = Accept(slavefd, (SA* )&clientaddr, &clientlen); /* we don't use clientaddr so we re-use is */
         	master_to_slave(slave_socket, slave_ip);
 
