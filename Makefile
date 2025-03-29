@@ -5,10 +5,10 @@ CFLAGS = -g -Wall -I$(INCLUDEDIR)
 
 all: server client
 
-server: $(SRCDIR)/server.o $(SRCDIR)/csapp.o $(SRCDIR)/handlers.o
+server: $(SRCDIR)/server.o $(SRCDIR)/csapp.o $(SRCDIR)/handlers.o 
 	$(CC) $(CFLAGS) -o $@ $^ -lpthread
 
-client: $(SRCDIR)/client.o $(SRCDIR)/csapp.o
+client: $(SRCDIR)/client.o $(SRCDIR)/csapp.o $(SRCDIR)/get.o $(SRCDIR)/request.o
 	$(CC) $(CFLAGS) -o $@ $^ -lpthread
 
 src/%.o: $(SRCDIR)/%.c $(INCLUDEDIR)/%.h
