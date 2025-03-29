@@ -56,10 +56,15 @@ void create_file(int clientfd, int fd, uint32_t file_bytes_sent, uint32_t file_s
                 rmdir("clientside/.log"); // Remove the now-empty log directory
 
                 printf("Transfer successfully complete.\n");
-                break;
+                return;
             }
         }
     }
+    if(total_bytes_sent != file_size){
+        printf("Lost connection to the server, please try again later.\n");
+        exit(0);
+    }
+
 }
 
 void print_display_size(uint32_t file_size, double* display_size, char** unit)
@@ -114,6 +119,9 @@ void get_response(int clientfd, request_t* request)
             
             close(fd);
         }
+    }else{
+        printf("Lost connection to the server, please try again later.\n");
+        exit(0);
     }
 }
 

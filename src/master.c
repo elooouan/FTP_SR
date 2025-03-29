@@ -165,7 +165,7 @@ int main(int argc, char** argv)
 
 	        int slave_id;
 			/* Find an available slave server to handle the client */
-	        while ((slave_id = available_slave(slaves, last_used_slave)) < 0);
+	        while ((slave_id = available_slave(slaves, next_slave)) < 0);
 
 			/* Assign the selected slave's IP address and port */
         	char* slave_ip = malloc(sizeof(slaves[slave_id - 1].ip_addr)); 
