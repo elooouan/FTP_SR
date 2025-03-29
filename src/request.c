@@ -10,6 +10,8 @@ request_t* fill_request_struct(char* input, request_t* req)
 {
     if (!req) return NULL;
 
+    /* request looks like -> get abcdefg.txt */
+    /* strtok splits a string into tokens based on the specified delimiter */
     char* token = strtok(input, " ");
     if (!token) {
         free(req);
@@ -49,6 +51,7 @@ char* serialize_request(request_t* req)
         exit(EXIT_FAILURE);
     }
     snprintf(message, message_size, "%d|%zu|%s|%u\n", req->type, req->filename_size, req->filename, req->total_bytes_sent);
+    
     return message;
 }
 

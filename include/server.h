@@ -38,7 +38,7 @@ request_t* decode_request(char* serialized_request);
  * This function reads the data sent by a client, decodes it, and handles
  * the request according to its type.
  *
- * @param connfd The connection descriptor for the client.
+ * @param connfd The connection descriptor between the server and the client.
  */
 void process_request(int connfd);
 
@@ -48,7 +48,7 @@ void process_request(int connfd);
  * This function directs requests to the appropriate functions based on
  * the request type.
  *
- * @param connfd The connection descriptor for the client.
+ * @param connfd The connection descriptor between the server and the client.
  * @param req Pointer to the `request_t` structure representing the request.
  */
 void manage_requests(int connfd, request_t* req);
@@ -59,7 +59,7 @@ void manage_requests(int connfd, request_t* req);
  * This function sends an error code and message to the client over the
  * specified connection.
  *
- * @param connfd The connection descriptor for the client.
+ * @param connfd The connection descriptor between the server and the client.
  * @param error_code The error code to send.
  * @param error_message The error message to send.
  */
@@ -71,7 +71,7 @@ void send_error(int connfd, int error_code, char* error_message);
  * This function handles error codes and sends appropriate error messages
  * to the client.
  *
- * @param connfd The connection descriptor for the client.
+ * @param connfd The connection descriptor between the server and the client.
  * @param error_code The error code to handle.
  */
 void manage_errors(int connfd, int error_code);
@@ -82,7 +82,7 @@ void manage_errors(int connfd, int error_code);
  * This function sends a file to the client if it exists and is accessible.
  * It reads the file in blocks and sends it over the connection.
  *
- * @param connfd The connection descriptor for the client.
+ * @param connfd The connection descriptor between the server and the client.
  * @param req Pointer to the `request_t` structure containing the GET request.
  */
 void file_manager(int connfd, request_t* req);

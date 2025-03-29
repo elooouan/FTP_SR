@@ -7,6 +7,25 @@
 pid_t pool[NB_PROC];
 int connection_closed = 0;
 
+void process_request(int connfd)
+{
+    ssize_t n;
+    char buf[MAXLINE];
+    rio_t rio;
+
+    Rio_readinitb(&rio, connfd);
+
+    /* While the connection is open, the server keeps reading from the socket */
+    while (!connection_closed && (n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
+        printf("server received %u bytes\n", (unsigned int)n);
+
+        request_t* req = decode_request(buf);
+        printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename, req->total_bytes_sent);
+
+        manage_requests(connfd, req);
+    }
+}
+
 request_t* decode_request(char* serialized_request)
 {
     request_t* req = malloc(sizeof(request_t));
@@ -30,58 +49,12 @@ request_t* decode_request(char* serialized_request)
     return req;
 }
 
-void process_request(int connfd)
-{
-    ssize_t n;
-    char buf[MAXLINE];
-    rio_t rio;
-
-    Rio_readinitb(&rio, connfd);
-
-    /* While the connection is open, the server keeps reading from the socket */
-    while (!connection_closed && (n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
-        printf("server received %u bytes\n", (unsigned int)n);
-
-        request_t* req = decode_request(buf);
-        printf("%s | %ld | %s | %u\n", req->type == 0 ? "GET" : "NOTGET", req->filename_size, req->filename, req->total_bytes_sent);
-
-        manage_requests(connfd, req);
-    }
-}
-
 void manage_requests(int connfd, request_t* req)
 {
     switch (req->type) {
         case 0: /* GET */
             file_manager(connfd, req);
             break;
-    }
-}
-
-/* Sends an error message following the specified protocol */
-void send_error(int connfd, int error_code, char* error_message)
-{
-    uint32_t error_indicator = htonl(0xFFFFFFFF); /* to indicate an error -> warning */
-    Rio_writen(connfd, &error_indicator, sizeof(error_indicator));
-    
-    error_code = htonl(error_code);
-    Rio_writen(connfd, &error_code, sizeof(error_code));
-    
-    uint32_t msg_len = strlen(error_message);
-    uint32_t msg_len_net = htonl(msg_len);
-    Rio_writen(connfd, &msg_len_net, sizeof(msg_len_net));
-    
-    Rio_writen(connfd, error_message, msg_len);
-}
-
-void manage_errors(int connfd, int error_code)
-{
-    switch (error_code) {
-        case ENOENT:
-            send_error(connfd, 404, "File does not exist");
-            break;
-        default:
-            send_error(connfd, 400, "Access error");
     }
 }
 
@@ -153,7 +126,32 @@ void file_manager(int connfd, request_t* req)
     free(pathname);
 }
 
+/* Sends an error message following the specified protocol */
+void send_error(int connfd, int error_code, char* error_message)
+{
+    uint32_t error_indicator = htonl(0xFFFFFFFF); /* to indicate an error -> warning */
+    Rio_writen(connfd, &error_indicator, sizeof(error_indicator));
+    
+    error_code = htonl(error_code);
+    Rio_writen(connfd, &error_code, sizeof(error_code));
+    
+    uint32_t msg_len = strlen(error_message);
+    uint32_t msg_len_net = htonl(msg_len);
+    Rio_writen(connfd, &msg_len_net, sizeof(msg_len_net));
+    
+    Rio_writen(connfd, error_message, msg_len);
+}
 
+void manage_errors(int connfd, int error_code)
+{
+    switch (error_code) {
+        case ENOENT:
+            send_error(connfd, 404, "File does not exist");
+            break;
+        default:
+            send_error(connfd, 400, "Access error");
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -161,7 +159,7 @@ int main(int argc, char **argv)
     Signal(SIGPIPE, SIG_IGN); /* Ignoring SIGPIPE and handling it in file_manager */
     
     pid_t pid;
-    int port = 2169; /* Default port */
+    int port = 2121; /* Default port */
     int listenfd = Open_listenfd(port);
 
     /* Creation of the process pool */
@@ -202,7 +200,7 @@ int main(int argc, char **argv)
 
             /* Process the request */
             process_request(connfd);
-            
+
             if (!connection_closed) Close(connfd);
             printf("Connection to (%s) closed\n", client_ip_string);
         }
