@@ -1,7 +1,7 @@
 CC = gcc
 INCLUDEDIR = include
 SRCDIR = src
-CFLAGS = -g -Wall -I$(INCLUDEDIR)
+CFLAGS = -g -Wall -I$(INCLUDEDIR) -lpthread
 
 all: server client
 

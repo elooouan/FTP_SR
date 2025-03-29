@@ -145,12 +145,11 @@ void file_manager(int connfd, request_t* req)
 int main(int argc, char **argv)
 {
     Signal(SIGINT, handler_sigint);
+    Signal(SIGPIPE, SIG_IGN);
     
     pid_t pid;
     int port = 2121; /* default port */
     int listenfd = Open_listenfd(port);
-
-    Signal(SIGPIPE, SIG_IGN);
 
     /* creation of the process pool */
     for (int i = 0; i < NB_PROC; i++ ) {
@@ -159,10 +158,9 @@ int main(int argc, char **argv)
         pool[i] = pid;
     }
 
-    
-
-
     if (pid == 0) {  
+        Signal(SIGINT, SIG_DFL);
+
         int connfd;
         socklen_t clientlen;
         struct sockaddr_in clientaddr;
